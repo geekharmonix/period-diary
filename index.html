@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Period diary</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f6f1ed;color:#35262f;font:1.05rem/1.55 system-ui}main{max-width:36rem;margin:8vh auto;padding:1.5rem}h1{font:3.1rem Georgia;margin:0}h2{font:1.6rem Georgia}section{background:white;border-radius:18px;padding:1.4rem;margin:1rem 0}label{display:block;font-weight:600}button,input{font:inherit;padding:.55rem;border-radius:8px;border:1px solid #896b77}button{cursor:pointer;background:#60384f;color:white}li{margin:.65rem 0}li button{margin-left:.7rem;background:white;color:#60384f}small{display:block}output{display:block;margin-top:.6rem}
+</style><main><h1>Period diary</h1><p>Keep a list of your period start dates on this device.</p>
+<section><form id="entry"><label for="day">First day of your period</label><input id="day" type="date" required> <button>Save date</button></form><output id="status" aria-live="polite"></output></section>
+<section><h2>Your start dates</h2><p id="empty">No dates saved yet.</p><ul id="historyList"></ul></section>
+<small>Anyone with access to this browser profile may see these dates. Clearing browser data may erase them. To correct a date, remove it and add the correct one.</small></main>
+<script>
+const key = 'period-diary-starts-v1';
+const day = document.querySelector('#day');
+const message = document.querySelector('#status');
+const now = new Date();
+day.max = [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('-');
+function readDates(){
+  const values = JSON.parse(localStorage.getItem(key) || '[]');
+  if (!Array.isArray(values) || !values.every(x => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x))) throw Error();
+  return values;
+}
+function render(){
+  const dates = readDates().sort().reverse();
+  const list = document.querySelector('#historyList');
+  list.replaceChildren();
+  document.querySelector('#empty').hidden = dates.length > 0;
+  for (const date of dates){
+    const row = document.createElement('li');
+    row.textContent = new Date(date+'T12:00:00').toLocaleDateString(undefined,{dateStyle:'long'});
+    const button = document.createElement('button');
+    button.textContent = 'Remove';
+    button.setAttribute('aria-label','Remove '+row.textContent);
+    button.onclick = () => update(date,false);
+    row.append(button);
+    list.append(row);
+  }
+}
+function update(date,add){
+  try {
+    const dates = readDates();
+    if(add && dates.includes(date)){message.textContent='That date is already saved.';return;}
+    const next = add ? [...dates,date] : dates.filter(item => item !== date);
+    localStorage.setItem(key,JSON.stringify(next));
+    render();
+    message.textContent=add?'Date saved.':'Date removed.';
+  } catch {message.textContent='Could not read or save dates in this browser.';}
+}
+document.querySelector('#entry').onsubmit = event => {event.preventDefault();update(day.value,true);};
+try {render();} catch {message.textContent='Saved dates are unavailable in this browser.';}
+</script></html>
